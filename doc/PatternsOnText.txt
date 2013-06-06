@@ -47,11 +47,10 @@ USAGE							*PatternsOnText-usage*
 			In {string}, & refers to the text that does not match,
 			whereas \1 etc. refer to the previous match of a
 			sub-expression in {pattern}.
-:[range]SubstituteExcept
-			Repeat the last :SubstituteExcept with the last used
-			search pattern, last used replacement string (also
-			from a |:substitute|), and last used |:s_flags|; "g"
-			is implicit.
+:[range]SubstituteExcept [flags] [count]
+			Repeat the last substitution with the last used search
+			pattern, last used replacement string, and last used
+			|:s_flags|; "g" is implicit.
 							       *:DeleteExcept*
 :[range]DeleteExcept [{pattern}]
 :[range]DeleteExcept /{pattern}/[flags]
@@ -65,10 +64,17 @@ USAGE							*PatternsOnText-usage*
 			Replace matches of {pattern} in the current line /
 			[range] with {string}, determining whether a
 			particular match should be replaced on the sequence of
-			"y" or "n" in {answers}. For example with "ynn", the
-			first match is replaced, the second and third are not,
-			the fourth is again replaced, ...
+			"y" or "n" (a count can be prefixed, e.g. "3y4n2y") or
+			numeric positions "2,5", or ranges "3-5" in {answers}.
+			If no numeric positions follow, the last "y" / "n"
+			sequence repeats for further matches. For example with
+			"ynn", the first match is replaced, the second and
+			third are not, the fourth is again replaced, ...
 			Handles & and \0, \1 .. \9 in {string}.
+:[range]SubstituteSelected [flags] [answers]
+			Repeat the last substitution with the last used search
+			pattern, last used replacement string, last used
+			|:s_flags|, and last used answers.
 
 							 *:SubstituteInSearch*
 :[range]SubstituteInSearch/{pattern}/{string}/[flags] [count]
@@ -85,6 +91,7 @@ USAGE							*PatternsOnText-usage*
 			pass the special flag [f].
 			For a case-insensitive substitution, prepend '\c' to
 			{pattern}.
+			Does not modify the last search pattern |quote/|.
 :[range]SubstituteInSearch [flags] [count]
 			Repeat last :SubstituteInSearch with same search
 			pattern and substitute string, but without the same
@@ -151,7 +158,7 @@ To uninstall, use the |:RmVimball| command.
 DEPENDENCIES					 *PatternsOnText-dependencies*
 
 - Requires Vim 7.0 or higher.
-- Requires the |ingo-library.vim| plugin (vimscript #4433), version 1.006 or
+- Requires the |ingo-library.vim| plugin (vimscript #4433), version 1.007 or
   higher.
 
 ==============================================================================
@@ -165,6 +172,16 @@ IDEAS							*PatternsOnText-ideas*
 
 ==============================================================================
 HISTORY						      *PatternsOnText-history*
+
+1.10	06-Jun-2013
+- ENH: :SubstituteSelected handles count before "y" and "n" answers, numeric
+  positions "2,5", and ranges "3-5".
+- Also recall previous answers in a bare :SubstituteSelected command.
+- The commands that take a {pattern}, i.e. :SubstituteExcept, :DeleteExcept,
+  :SubstituteSelected now consistently set that as the last search pattern.
+- Refactoring: Move functions from ingo/cmdargs.vim to
+  ingo/cmdargs/pattern.vim and ingo/cmdargs/substitute.vim.
+  *** You need to update to ingo-library (vimscript #4433) version 1.007! ***
 
 1.01	30-May-2013
 Implement abort on error for :SubstituteExcept, :DeleteExcept,

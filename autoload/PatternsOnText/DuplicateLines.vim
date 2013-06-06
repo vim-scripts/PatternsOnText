@@ -1,7 +1,7 @@
 " PatternsOnText/DuplicateLines.vim: Advanced commands to apply regular expressions.
 "
 " DEPENDENCIES:
-"   - ingo/cmdargs.vim autoload script
+"   - ingo/cmdargs/pattern.vim autoload script
 "   - ingo/collections.vim autoload script
 "   - ingo/msg.vim autoload script
 "
@@ -11,6 +11,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.02.005	01-Jun-2013	Move functions from ingo/cmdargs.vim to
+"				ingo/cmdargs/pattern.vim and
+"				ingo/cmdargs/substitute.vim.
 "   1.00.004	28-May-2013	Add the pattern to the search history, like
 "				:substitute, :global, etc. Because we're not
 "				invoking :substitute here, we have to do this
@@ -28,14 +31,14 @@ function! PatternsOnText#DuplicateLines#PatternOrCurrentLine( arguments )
     if empty(a:arguments)
 	return '\V\C\^' . escape(getline('.'), '\') . '\$'
     else
-	return ingo#cmdargs#UnescapePatternArgument(ingo#cmdargs#ParsePatternArgument(a:arguments))
+	return ingo#cmdargs#pattern#Unescape(ingo#cmdargs#pattern#Parse(a:arguments))
     endif
 endfunction
 function! s:FilterDuplicateLines( accumulator )
     call filter(a:accumulator, 'len(v:val) > 1')
 endfunction
 function! PatternsOnText#DuplicateLines#Process( startLnum, endLnum, ignorePattern, acceptPattern, Action )
-    let l:ignorePattern = ingo#cmdargs#UnescapePatternArgument(ingo#cmdargs#ParsePatternArgument(a:ignorePattern))
+    let l:ignorePattern = ingo#cmdargs#pattern#Unescape(ingo#cmdargs#pattern#Parse(a:ignorePattern))
 "****D echomsg '****' string(l:ignorePattern) string(a:acceptPattern)
     " Add the pattern to the search history, like :substitute, :global, etc.
     for l:pattern in filter([l:ignorePattern, a:acceptPattern], '! empty(v:val)')
