@@ -10,6 +10,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.11.007	10-Jun-2013	FIX: Remove -bar from all commands to correctly
+"				handle patterns like foo\|bar without escaping
+"				as foo\\|bar.
 "   1.10.006	06-Jun-2013	Also recall previous answers in a bare
 "				:SubstituteSelected command.
 "   1.10.005	04-Jun-2013	The commands that take a {pattern}, i.e.
@@ -34,10 +37,10 @@ let g:loaded_PatternsOnText = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-command! -bar -range -nargs=? SubstituteExcept call PatternsOnText#Except#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
-command! -bar -range -nargs=? DeleteExcept call PatternsOnText#Except#Delete('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
+command! -range -nargs=? SubstituteExcept call PatternsOnText#Except#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
+command! -range -nargs=? DeleteExcept call PatternsOnText#Except#Delete('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
 
-command! -bar -range -nargs=? SubstituteSelected call PatternsOnText#Selected#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
+command! -range -nargs=? SubstituteSelected call PatternsOnText#Selected#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
 
 command! -range -nargs=? SubstituteInSearch if ! PatternsOnText#InSearch#Substitute(<line1>, <line2>, <q-args>) | echoerr ingo#err#Get() | endif
 
@@ -60,11 +63,11 @@ command! -bang -range=% -nargs=? DeleteDuplicateLinesIgnoring
 \       echoerr 'No duplicate lines' |
 \   endif
 
-command! -bar -bang -range -nargs=? PrintDuplicates
+command! -bang -range -nargs=? PrintDuplicates
 \   if ! PatternsOnText#Duplicates#Process(<line1>, <line2>, <q-args>, '', function('PatternsOnText#Duplicates#PrintMatches')) && <bang>1 |
 \       echoerr 'No duplicates' |
 \   endif
-command! -bar -bang -range -nargs=? DeleteDuplicates
+command! -bang -range -nargs=? DeleteDuplicates
 \   call setline(<line1>, getline(<line1>)) |
 \   if ! PatternsOnText#Duplicates#Process(<line1>, <line2>, <q-args>, function('PatternsOnText#Duplicates#DeleteMatches'), function('PatternsOnText#Duplicates#ReportDeletedMatches')) && <bang>1 |
 \       echoerr 'No duplicates' |

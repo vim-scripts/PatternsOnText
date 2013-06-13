@@ -173,6 +173,12 @@ IDEAS							*PatternsOnText-ideas*
 ==============================================================================
 HISTORY						      *PatternsOnText-history*
 
+1.11	13-Jun-2013
+- FIX: Remove -bar from all commands to correctly handle patterns like
+  foo\|bar without escaping as foo\\|bar.
+- :SubstituteSelected now positions the cursor on the line where the last
+  selected replacement happened, to behave like :substitute.
+
 1.10	06-Jun-2013
 - ENH: :SubstituteSelected handles count before "y" and "n" answers, numeric
   positions "2,5", and ranges "3-5".

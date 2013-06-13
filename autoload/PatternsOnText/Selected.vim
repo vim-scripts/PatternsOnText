@@ -11,6 +11,13 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.11.006	12-Jun-2013	Factor out PatternsOnText#Selected#Parse().
+"   1.11.005	11-Jun-2013	:SubstituteSelected now positions the cursor on
+"				the line where the last selected replacement
+"				happened, to behave like :substitute.
+"				Allow to use :SmartCase substitution via new
+"				optional argument to
+"				PatternsOnText#Selected#Substitute().
 "   1.10.004	06-Jun-2013	BUG: Because of substitute(), we have to handle
 "				"&" ourselves. Remember the last replacement and
 "				use factored out
@@ -112,6 +119,7 @@ function! PatternsOnText#Selected#CountedReplace()
     let l:isSelected = PatternsOnText#Selected#GetAnswer(s:SubstituteSelected.answers, s:SubstituteSelected.count)
 
     if l:isSelected
+	let s:SubstituteSelected.lastLnum = line('.')
 	if s:SubstituteSelected.replacement =~# '^\\='
 	    " Handle sub-replace-special.
 	    return eval(s:SubstituteSelected.replacement[2:])
@@ -136,11 +144,9 @@ function! PatternsOnText#Selected#CountedReplace()
 endfunction
 let s:previousReplacement = ''
 let s:previousAnswers = ''
-function! PatternsOnText#Selected#Substitute( range, arguments )
-    call ingo#err#Clear()
-    let s:SubstituteSelected = {'count': 0}
+function! PatternsOnText#Selected#Parse( arguments, previousAnswers )
     let l:answersExpr = '\-,[:space:][:digit:]yn'
-    let [l:separator, l:pattern, s:SubstituteSelected.replacement, l:flags, l:count] =
+    let [l:separator, l:pattern, l:replacement, l:flags, l:count] =
     \   ingo#cmdargs#substitute#Parse(a:arguments, {'additionalFlags': l:answersExpr, 'emptyFlags': ['', '']})  " Because of the more complex defaulting of the two different :s_flags and answers, we handle this ourselves.
     " Note: l:count is always empty, as whitespace + digits are already matched
     " by our additional flags, and that takes precedence.
@@ -151,28 +157,40 @@ function! PatternsOnText#Selected#Substitute( range, arguments )
     " form, not when a /{pattern} is passed; it's too easy to forget the
     " required answers and then be surprised when the ones from the previous
     " unrelated :SubstituteSelected are used.
-    let l:answers = (empty(l:parsedAnswers) && a:arguments ==# l:substituteFlags ? s:previousAnswers : l:parsedAnswers)
-    if empty(l:answers)
-	call ingo#err#Set('Missing or invalid answers')
-	return 0
-    endif
-    let s:previousAnswers = l:answers
-
+    let l:answers = (empty(l:parsedAnswers) && a:arguments ==# l:substituteFlags ? a:previousAnswers : l:parsedAnswers)
     if a:arguments ==# l:parsedAnswers
 	" Only {answers} are given on this command repeat. Use the :s_flags from
 	" the previous :substitute.
 	let l:substituteFlags = '&'
     endif
 
-    let s:SubstituteSelected.replacement = PatternsOnText#EmulatePreviousReplacement(s:SubstituteSelected.replacement, s:previousReplacement)
+    return [l:separator, l:pattern, l:replacement, l:substituteFlags, l:answers]
+endfunction
+function! PatternsOnText#Selected#Substitute( range, arguments, ... )
+    call ingo#err#Clear()
+    let s:SubstituteSelected = {'count': 0, 'lastLnum': 0}
+    let [l:separator, l:pattern, l:replacement, l:substituteFlags, l:answers] = PatternsOnText#Selected#Parse(a:arguments, s:previousAnswers)
+    if empty(l:answers)
+	call ingo#err#Set('Missing or invalid answers')
+	return 0
+    endif
+
+    let s:previousAnswers = l:answers
+    let s:SubstituteSelected.replacement = PatternsOnText#EmulatePreviousReplacement(l:replacement, s:previousReplacement)
     let s:previousReplacement = s:SubstituteSelected.replacement
 
     try
 	let s:SubstituteSelected.answers = PatternsOnText#Selected#CreateAnswers(l:answers)
 "****D echomsg '****' string([l:separator, l:pattern, s:SubstituteSelected.replacement, l:substituteFlags, l:answers, s:SubstituteSelected.answers])
-	execute printf('%ssubstitute %s%s%s\=PatternsOnText#Selected#CountedReplace()%s%s',
-	\   a:range, l:separator, l:pattern, l:separator, l:separator, l:substituteFlags
+	execute printf('%s%s %s%s%s\=PatternsOnText#Selected#CountedReplace()%s%s',
+	\   a:range, (a:0 ? a:1 : 'substitute'),
+	\   l:separator, l:pattern, l:separator, l:separator, l:substituteFlags
 	\)
+
+	" :substitute has visited all further matches, but the last replacement
+	" may have happened before that. Position the cursor on the last
+	" actually selected match.
+	execute s:SubstituteSelected.lastLnum . 'normal! ^'
 	return 1
     catch /^Vim\%((\a\+)\)\=:E/
 	call ingo#err#SetVimException()
