@@ -12,6 +12,8 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.12.005	14-Jun-2013	Minor: Make substitute() robust against
+"				'ignorecase'.
 "   1.10.004	06-Jun-2013	Factor out
 "				PatternsOnText#EmulatePreviousReplacement(); it
 "				is also needed by PatternsOnText/Selected.vim.
@@ -57,7 +59,7 @@ function! PatternsOnText#InSearch#Substitute( firstLine, lastLine, arguments ) r
     let l:substFlags = 'g'
     if l:flags =~# 'f'
 	let l:substFlags = ''
-	let l:flags = substitute(l:flags, 'f', '', 'g')
+	let l:flags = substitute(l:flags, '\Cf', '', 'g')
     endif
 
     let s:didInnerSubstitution = 0

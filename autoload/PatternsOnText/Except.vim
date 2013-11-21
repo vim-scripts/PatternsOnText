@@ -12,6 +12,19 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.12.007	16-Sep-2013	FIX: Use of \v and \V magicness atoms in the
+"				pattern for :DeleteExcept and :SubstituteExcept
+"				cause errors like "E54: Unmatched (" and "E486:
+"				Pattern not found". Revert to the default
+"				'magic' mode after each pattern insertion to the
+"				workhorse regular expression.
+"				FIX: Abort :DeleteExcept / :SubstituteExcept
+"				commands when the pattern contains the set start
+"				/ end match patterns \zs / \ze, as these
+"				interfere with the internal implemenation. (I
+"				managed to replace \ze with \@=, but couldn't
+"				substitute \zs with \@<= without affecting the
+"				results.)
 "   1.10.006	04-Jun-2013	Refactoring: Perform the defaulting to @/
 "				outside s:InvertedSubstitute(), partly through
 "				ingo#cmdargs#substitute#Parse().
@@ -41,8 +54,13 @@
 function! s:InvertedSubstitute( range, separator, pattern, replacement, flags, count )
     call ingo#err#Clear()
     if empty(a:pattern) | throw 'ASSERT: Passed pattern must not be empty' | endif
+    if a:pattern =~# '\%(\%(^\|[^\\]\)\%(\\\\\)*\\\)\@<!\\z[se]'
+	call ingo#err#Set(printf('The pattern cannot use the set start / end match patterns \zs / \ze: %s%s%s', a:separator, a:pattern, a:separator))
+	return 0
+    endif
+
     try
-	execute printf('%ssubstitute %s\%%(^\|%s\)\zs\%%(%s\)\@!.\{-1,}\ze\%%(%s\|$\)%s%s%s%s%s',
+	execute printf('%ssubstitute %s\%%(^\|%s\m\)\zs\%%(%s\m\)\@!.\{-1,}\ze\%%(%s\m\|$\)%s%s%s%s%s',
 	\   a:range, a:separator, a:pattern, a:pattern, a:pattern, a:separator, a:replacement, a:separator,
 	\   a:flags . (&gdefault || a:flags =~# '^&\|g' ? '' : 'g'), a:count
 	\)
