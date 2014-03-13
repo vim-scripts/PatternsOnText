@@ -17,6 +17,8 @@ SOURCE
     http://stackoverflow.com/questions/14236226/hanging-only-to-the-first-instance-of-the-line-and-deleting-all-further-copies
 :DeleteDuplicateLinesIgnoring inspired by
     http://stackoverflow.com/questions/1896793/remove-duplicate-line-in-vim
+:DeleteAllDuplicateLinesIgnoring inspired by
+    http://stackoverflow.com/questions/22193596/in-vim-how-to-remove-all-lines-that-are-duplicate-somewhere
 
 SEE ALSO
 - The ExtractMatches.vim plugin (vimscript #4795) provides commands to yank
@@ -56,8 +58,27 @@ USAGE
                         "ynn", the first match is replaced, the second and
                         third are not, the fourth is again replaced, ...
                         Handles & and \0, \1 .. \9 in {string}, also \=
-                        sub-replace-expression.
+                        sub-replace-expression and \r, \n, \t, \b.
 :[range]SubstituteSelected [flags] [answers]
+                        Repeat the last substitution with the last used search
+                        pattern, last used replacement string, last used
+                        :s_flags, and last used answers.
+
+:[range]SubstituteSubsequent/{pattern}/{string}/[flags]
+                        Replace all matches of {pattern} on or after the current
+                        cursor position (and in all entire following lines) in
+                        [range] with {string}.
+                        For a "blockwise to end" replacement that is
+                        restricted to positions on and after the current
+                        column in all lines, pass the special flag [b].
+:[range]SubstituteSubsequent/{pattern}/{string}/[flags] {answers}
+                        Replace all matches of {pattern} on or after the current
+                        cursor position in [range] with {string}, determining
+                        whether a particular match should be replaced on the
+                        sequence of "y" or "n" (a count can be prefixed, e.g.
+                        "3y4n2y") or numeric positions "2,5", or ranges "3-5" in
+                        {answers}, as with :SubstituteSelected.
+:[range]SubstituteSubsequent [flags] [answers]
                         Repeat the last substitution with the last used search
                         pattern, last used replacement string, last used
                         :s_flags, and last used answers.
@@ -68,7 +89,10 @@ USAGE
                         :%s//\=substitute(submatch(0), "foo", "bar", "g")/gc
                        ~ is replaced with the {string} of the previous
                         :SubstituteInSearch.
-                        [flags] and [count] apply to the outer matching of the
+                        Handles \= sub-replace-expression in {string}, which
+                        can't be used recursively in the above built-in
+                        :%s//\=...
+                       [flags] and [count] apply to the outer matching of the
                         last search pattern. The [e] from :s_flags also
                         suppresses the error message when {pattern} never
                         matches.
@@ -103,6 +127,9 @@ USAGE
                         / replace, use \\:
                             C:\\=my\ drive
 
+                        For all following commands, the [!] suppresses the
+                        error when there are no duplicates.
+
 :[range]PrintDuplicateLinesOf[!] [{pattern}]
 :[range]PrintDuplicateLinesOf[!] /{pattern}/
                         Print all occurrences of lines matching {pattern} (or
@@ -119,14 +146,22 @@ USAGE
 :[range]PrintDuplicateLinesIgnoring[!] [{pattern}]
 :[range]PrintDuplicateLinesIgnoring[!] /{pattern}/
                         Print all occurrences of a line whose text (ignoring
-                        any text matched by {pattern} appears multiple times.
+                        any text matched by {pattern}) appears multiple times.
+                        To ignore empty lines, use a {pattern} of ^$ (strict)
+                        or ^\s*$ (lenient).
                         All matching lines are added to the jumplist, so you
                         can use CTRL-O to revisit the locations.
 
 :[range]DeleteDuplicateLinesIgnoring[!] [{pattern}]
 :[range]DeleteDuplicateLinesIgnoring[!] /{pattern}/
                         Delete all subsequent occurrences of a line (ignoring
-                        any text matched by {pattern}.
+                        any text matched by {pattern}).
+
+:[range]DeleteAllDuplicateLinesIgnoring[!] [{pattern}]
+:[range]DeleteAllDuplicateLinesIgnoring[!] /{pattern}/
+                        Delete all (including the very first) occurrences of a
+                        duplicate line (ignoring any text matched by
+                        {pattern}).
 
 :[range]PrintDuplicates[!] [{pattern}]
 :[range]PrintDuplicates[!] /{pattern}/
@@ -145,3 +180,16 @@ USAGE
 :[range]DeleteDuplicates[!] /{pattern}/
                         Delete all subsequent matches of {pattern} (or the
                         last search pattern, if omitted) except the first.
+
+:[range]DeleteRanges[!] {range} [x]
+:[range]YankRanges[!] {range} [x]
+                        Within the entire buffer / passed [range], delete /
+                        yank all lines that fall within {range} (with [!]: do
+                        not fall within) into register [x] (or the unnamed
+                        register).
+:[range]PrintRanges[!] {range}
+                        Within the entire buffer / passed [range], print all
+                        lines that fall within {range} (with [!]: do not fall
+                        within).
+                        Each start of a block is added to the jumplist, so
+                        you can use CTRL-O to revisit the locations.

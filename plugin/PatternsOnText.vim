@@ -10,6 +10,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.30.010	10-Mar-2014	Add :DeleteRanges, :YankRanges, :PrintRanges
+"				commands.
+"   1.30.009	05-Mar-2014	Add :DeleteAllDuplicateLinesIgnoring command.
 "   1.20.008	16-Jan-2014	Add :SubstituteWildcard and :SubstituteMultiple
 "				commands.
 "   1.11.007	10-Jun-2013	FIX: Remove -bar from all commands to correctly
@@ -42,7 +45,14 @@ set cpo&vim
 command! -range -nargs=? SubstituteExcept call PatternsOnText#Except#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
 command! -range -nargs=? DeleteExcept call PatternsOnText#Except#Delete('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
 
-command! -range -nargs=? SubstituteSelected call PatternsOnText#Selected#Substitute('<line1>,<line2>', <q-args>) | let @/ = histget('search', -1) | if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
+command! -range -nargs=? SubstituteSelected
+\   call PatternsOnText#Selected#Substitute('<line1>,<line2>', <q-args>) |
+\   let @/ = histget('search', -1) |
+\   if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
+command! -range -nargs=? SubstituteSubsequent
+\   call PatternsOnText#Subsequent#Substitute('substitute', 'SubstituteSelected', <line1>, <line2>, <q-args>) |
+\   let @/ = histget('search', -1) |
+\   if ingo#err#IsSet() | echoerr ingo#err#Get() | endif
 
 command! -range -nargs=? SubstituteInSearch if ! PatternsOnText#InSearch#Substitute(<line1>, <line2>, <q-args>) | echoerr ingo#err#Get() | endif
 
@@ -55,7 +65,7 @@ command! -bang -range=% -nargs=? PrintDuplicateLinesOf
 \   endif
 command! -bang -range=% -nargs=? DeleteDuplicateLinesOf
 \   call setline(<line1>, getline(<line1>)) |
-\   if ! PatternsOnText#DuplicateLines#Process(<line1>, <line2>, '', PatternsOnText#DuplicateLines#PatternOrCurrentLine(<q-args>), function('PatternsOnText#DuplicateLines#DeleteLines')) && <bang>1 |
+\   if ! PatternsOnText#DuplicateLines#Process(<line1>, <line2>, '', PatternsOnText#DuplicateLines#PatternOrCurrentLine(<q-args>), function('PatternsOnText#DuplicateLines#DeleteSubsequentLines')) && <bang>1 |
 \       echoerr 'No duplicate lines' |
 \   endif
 command! -bang -range=% -nargs=? PrintDuplicateLinesIgnoring
@@ -64,7 +74,12 @@ command! -bang -range=% -nargs=? PrintDuplicateLinesIgnoring
 \   endif
 command! -bang -range=% -nargs=? DeleteDuplicateLinesIgnoring
 \   call setline(<line1>, getline(<line1>)) |
-\   if ! PatternsOnText#DuplicateLines#Process(<line1>, <line2>, <q-args>, '', function('PatternsOnText#DuplicateLines#DeleteLines')) && <bang>1 |
+\   if ! PatternsOnText#DuplicateLines#Process(<line1>, <line2>, <q-args>, '', function('PatternsOnText#DuplicateLines#DeleteSubsequentLines')) && <bang>1 |
+\       echoerr 'No duplicate lines' |
+\   endif
+command! -bang -range=% -nargs=? DeleteAllDuplicateLinesIgnoring
+\   call setline(<line1>, getline(<line1>)) |
+\   if ! PatternsOnText#DuplicateLines#Process(<line1>, <line2>, <q-args>, '', function('PatternsOnText#DuplicateLines#DeleteAllLines')) && <bang>1 |
 \       echoerr 'No duplicate lines' |
 \   endif
 
@@ -76,6 +91,20 @@ command! -bang -range -nargs=? DeleteDuplicates
 \   call setline(<line1>, getline(<line1>)) |
 \   if ! PatternsOnText#Duplicates#Process(<line1>, <line2>, <q-args>, function('PatternsOnText#Duplicates#DeleteMatches'), function('PatternsOnText#Duplicates#ReportDeletedMatches')) && <bang>1 |
 \       echoerr 'No duplicates' |
+\   endif
+
+command! -bang -range=% -nargs=+ DeleteRanges
+\   call setline(<line1>, getline(<line1>)) |
+\   if ! PatternsOnText#Ranges#Command('delete', <line1>, <line2>, <bang>0, <q-args>) |
+\       echoerr 'No matching ranges' |
+\   endif
+command! -bang -range=% -nargs=+ YankRanges
+\   if ! PatternsOnText#Ranges#Command('yank', <line1>, <line2>, <bang>0, <q-args>) |
+\       echoerr 'No matching ranges' |
+\   endif
+command! -bang -range=% -nargs=+ PrintRanges
+\   if ! PatternsOnText#Ranges#Command('print', <line1>, <line2>, <bang>0, <q-args>) |
+\       echoerr 'No matching ranges' |
 \   endif
 
 let &cpo = s:save_cpo

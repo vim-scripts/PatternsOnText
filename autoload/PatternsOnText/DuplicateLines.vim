@@ -1,16 +1,24 @@
-" PatternsOnText/DuplicateLines.vim: Advanced commands to apply regular expressions.
+" PatternsOnText/DuplicateLines.vim: Commands to work on duplicate lines.
 "
 " DEPENDENCIES:
 "   - ingo/cmdargs/pattern.vim autoload script
 "   - ingo/collections.vim autoload script
-"   - ingo/msg.vim autoload script
 "
-" Copyright: (C) 2013 Ingo Karkat
+" Copyright: (C) 2013-2014 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.30.007	10-Mar-2014	Extract PatternsOnText#DeleteLines().
+"   1.30.006	05-Mar-2014	Extract s:DeleteLines() and use in new
+"				PatternsOnText#DuplicateLines#DeleteAllLines()
+"				which implements the new
+"				:DeleteAllDuplicateLinesIgnoring command.
+"				CHG: Don't ignore empty lines, but put them into
+"				the accumulator as ^@ ("\n"). Empty lines now
+"				need to be explicitly ignored, e.g. via /^$/
+"				pattern.
 "   1.02.005	01-Jun-2013	Move functions from ingo/cmdargs.vim to
 "				ingo/cmdargs/pattern.vim and
 "				ingo/cmdargs/substitute.vim.
@@ -53,11 +61,15 @@ function! PatternsOnText#DuplicateLines#Process( startLnum, endLnum, ignorePatte
 	endif
 
 	if ! empty(l:ignorePattern)
+	    let l:wasEmpty = empty(l:line)
 	    let l:line = substitute(l:line, l:ignorePattern, '', 'g')
+	    if empty(l:line) && (! l:wasEmpty || '' =~ l:ignorePattern)
+		continue    " Filter out completely ignored lines.
+	    endif
 	endif
 
 	if empty(l:line)
-	    continue
+	    let l:line = "\n" " Dictionary keys mustn't be empty, so persist it as if it contained ^@.
 	endif
 
 	if ! has_key(l:accumulator, l:line)
@@ -91,7 +103,7 @@ function! PatternsOnText#DuplicateLines#PrintLines( accumulator )
 	for [l:line, l:lnums] in sort(items(a:accumulator), 's:CompareByFirstValue')
 	    if len(a:accumulator) > 1
 		echohl Directory
-		echo l:line
+		echo (l:line ==# "\n" ? '' : l:line) |  " Empty lines are persisted as ^@.
 		echohl None
 	    endif
 	    for l:lnum in l:lnums
@@ -102,31 +114,20 @@ function! PatternsOnText#DuplicateLines#PrintLines( accumulator )
 	let &foldenable = l:save_foldenable
     endtry
 endfunction
-function! PatternsOnText#DuplicateLines#DeleteLines( accumulator )
-    " Set a jump on the original position.
-    normal! m'
-
+function! s:DeleteLines( accumulator, isDeleteFirstLine )
     let l:deleteLnums = []
 
-    " All but the first occurrence shall be deleted.
     for l:slotLnums in values(a:accumulator)
-	call extend(l:deleteLnums, l:slotLnums[1:])
+	call extend(l:deleteLnums, (a:isDeleteFirstLine ? l:slotLnums : l:slotLnums[1:]))
     endfor
 
-    " Sort from last to first line to avoid adapting the line numbers.
-    for l:lnum in reverse(sort(l:deleteLnums, 'ingo#collections#numsort'))
-	execute 'keepjumps' l:lnum . 'delete _'
-    endfor
-
-    " Position the cursor on the line after the last deletion, like
-    " :g/.../delete does.
-    execute (l:deleteLnums[0] - len(l:deleteLnums) + 1)
-    normal! ^
-
-    " Print a summary.
-    if len(l:deleteLnums) > &report
-	call ingo#msg#StatusMsg(printf('%d fewer line%s', len(l:deleteLnums), (len(l:deleteLnums) == 1 ? '' : 's')))
-    endif
+    call PatternsOnText#DeleteLines(l:deleteLnums)
+endfunction
+function! PatternsOnText#DuplicateLines#DeleteSubsequentLines( accumulator )
+    call s:DeleteLines(a:accumulator, 0)
+endfunction
+function! PatternsOnText#DuplicateLines#DeleteAllLines( accumulator )
+    call s:DeleteLines(a:accumulator, 1)
 endfunction
 
 " vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :

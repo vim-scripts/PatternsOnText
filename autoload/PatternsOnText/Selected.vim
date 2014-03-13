@@ -1,9 +1,10 @@
-" PatternsOnText/Selected.vim: Advanced commands to apply regular expressions.
+" PatternsOnText/Selected.vim: Commands to substitute only selected matches.
 "
 " DEPENDENCIES:
 "   - PatternsOnText.vim autoload script
 "   - ingo/cmdargs/substitute.vim autoload script
 "   - ingo/err.vim autoload script
+"   - ingo/escape.vim autoload script
 "
 " Copyright: (C) 2011-2014 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -11,6 +12,16 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.30.012	12-Mar-2014	Handle \r, \n, \t, \b in replacement, too.
+"   1.30.011	11-Mar-2014	Allow to pass additional substitute flags to
+"				PatternsOnText#Selected#Parse(), used by
+"				PatternsOnText/Subsequent.vim
+"   1.21.010	05-Mar-2014	FIX: Need to escape '\\' in addition to the
+"				passed a:expr (after the previous fix).
+"   1.21.009	20-Feb-2014	FIX: Wrong use of ingo#escape#Unescape(); need
+"				to unescape the \& or \\1 (to & or \1) via
+"				substitute(), as the library function does not
+"				take an expression.
 "   1.20.008	17-Jan-2014	Replace the sequential expansion of &, \0, \1,
 "				... with a single iteration, implemented in new
 "				PatternsOnText#ReplaceSpecial(). Now, when \1
@@ -51,6 +62,8 @@
 "				answers.
 "   1.01.002	30-May-2013	Implement abort on error.
 "   1.00.001	22-Jan-2013	file creation
+let s:save_cpo = &cpo
+set cpo&vim
 
 function! PatternsOnText#Selected#CreateAnswers( argument )
     let [l:cnt, l:answers, l:repeatedAnswers] = [0, '', '']
@@ -131,30 +144,39 @@ function! PatternsOnText#Selected#CountedReplace()
 	    " Handle sub-replace-special.
 	    return eval(s:SubstituteSelected.replacement[2:])
 	else
-	    " Handle & and \0, \1 .. \9 (but not \u, \U, \n, etc.)
-	    return PatternsOnText#ReplaceSpecial('', s:SubstituteSelected.replacement, '\%(&\|\\[0-9]\)', function('PatternsOnText#Selected#ReplaceSpecial'))
+	    " Handle & and \0, \1 .. \9, and \r\n\t\b (but not \u, \U, etc.)
+	    return PatternsOnText#ReplaceSpecial('', s:SubstituteSelected.replacement, '\%(&\|\\[0-9rnbt]\)', function('PatternsOnText#Selected#ReplaceSpecial'))
 	endif
     else
 	return submatch(0)
     endif
 endfunction
 function! PatternsOnText#Selected#ReplaceSpecial( expr, match, replacement )
-    if a:replacement =~# '^' . a:expr . '$'
+    if a:replacement ==# '\n'
+	return "\n"
+    elseif a:replacement ==# '\r'
+	return "\r"
+    elseif a:replacement ==# '\t'
+	return "\t"
+    elseif a:replacement ==# '\b'
+	return "\<BS>"
+    elseif a:replacement =~# '^' . a:expr . '$'
 	return submatch(a:replacement ==# '&' ? 0 : a:replacement[-1:-1])
     endif
-    return ingo#escape#Unescape(a:replacement, '\%(\%(^\|[^\\]\)\%(\\\\\)*\\\)\@<!\\' . a:expr)
+    return ingo#escape#UnescapeExpr(a:replacement, '\%(\\\|' . a:expr . '\)')
 endfunction
 let s:previousReplacement = ''
 let s:previousAnswers = ''
-function! PatternsOnText#Selected#Parse( arguments, previousAnswers )
-    let l:answersExpr = '\-,[:space:][:digit:]yn'
+function! PatternsOnText#Selected#Parse( arguments, previousAnswers, ... )
+    let l:additionalFlags = (a:0 ? a:1 : '')
+    let l:answersExpr = '\-,[:space:][:digit:]yn' . l:additionalFlags
     let [l:separator, l:pattern, l:replacement, l:flags, l:count] =
     \   ingo#cmdargs#substitute#Parse(a:arguments, {'additionalFlags': l:answersExpr, 'emptyFlags': ['', '']})  " Because of the more complex defaulting of the two different :s_flags and answers, we handle this ourselves.
     " Note: l:count is always empty, as whitespace + digits are already matched
     " by our additional flags, and that takes precedence.
     " Note: Must not include the built-in :s_n flag, as this is one of the
     " possible answers, and must be included there.
-    let [l:substituteFlags, l:parsedAnswers] = matchlist(l:flags, '\C^\(&\?[cegiIp#lr]*\)\s*\([' . l:answersExpr . ']*\)$')[1:2]
+    let [l:substituteFlags, l:parsedAnswers] = matchlist(l:flags, '\C^\(&\?[cegiIp#lr' . l:additionalFlags . ']*\)\s*\([' . l:answersExpr . ']*\)$')[1:2]
     " Use previous answers only for the :SubstituteSelected [flags] [answers]
     " form, not when a /{pattern} is passed; it's too easy to forget the
     " required answers and then be surprised when the ones from the previous
@@ -203,4 +225,6 @@ function! PatternsOnText#Selected#Substitute( range, arguments, ... )
     endtry
 endfunction
 
+let &cpo = s:save_cpo
+unlet s:save_cpo
 " vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
