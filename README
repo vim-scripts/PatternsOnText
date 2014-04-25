@@ -101,10 +101,14 @@ USAGE
                         For a case-insensitive substitution, prepend '\c' to
                         {pattern}.
                         Does not modify the last search pattern quote/.
+:[range]SubstituteInSearch/{search}/{pattern}/{string}/[flags] [count]
+                        Like above, but additionally specifies the {search}
+                        pattern instead of using quote/ (which again isn't
+                        modified).
 :[range]SubstituteInSearch [flags] [count]
                         Repeat last :SubstituteInSearch with same search
-                        pattern and substitute string, but without the same
-                        flags.
+                        {pattern} and substitute {string}, but without the
+                        same flags or given {search} pattern.
 
 :[range]SubstituteMultiple /{pattern}/{string}/ [...] [flags] [count]
                         Change any of the {pattern} given to the corresponding
@@ -181,15 +185,33 @@ USAGE
                         Delete all subsequent matches of {pattern} (or the
                         last search pattern, if omitted) except the first.
 
-:[range]DeleteRanges[!] {range} [x]
-:[range]YankRanges[!] {range} [x]
+:[range]DeleteRanges[!] {range} [range] [...] [x]
+:[range]YankRanges[!] {range} [range] [...] [x]
                         Within the entire buffer / passed [range], delete /
                         yank all lines that fall within {range} (with [!]: do
                         not fall within) into register [x] (or the unnamed
-                        register).
-:[range]PrintRanges[!] {range}
+                        register). When multiple [range]s are given, each line
+                        is yanked only once (in ascending order).
+
+:[range]PrintRanges[!] {range} [range] [...]
                         Within the entire buffer / passed [range], print all
                         lines that fall within {range} (with [!]: do not fall
                         within).
                         Each start of a block is added to the jumplist, so
                         you can use CTRL-O to revisit the locations.
+
+:[range]RangeDo[!] {range} [range] [...] {command}
+                        Within the entire buffer / passed [range], execute the
+                        Ex command {cmd} on each line that falls within
+                        {range} (with [!]: does not fall within). When
+                        multiple [range]s are given, each line is processed
+                        only once (in ascending order).
+                        Note: {command} must be separated by whitespace from
+                        the preceding ranges!
+                        Works like
+                            :global/apples/,/peaches/ {cmd}
+                       but:
+                        - processes each line only once when the ranges are
+                          overlapping
+                        - supports multiple ranges (which are joined) and
+                          inversion with [!]
