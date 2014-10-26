@@ -27,6 +27,11 @@ SEE ALSO
   {wildcard}={string} replacement pairs of :SubstituteWildcard, but for
   editing a similar file, e.g. via :EditSubstitute.
 
+RELATED WORKS
+- The :SubstituteSelected command can be emulated with built-ins via
+    :call feedkeys('yyyq') | %s/{pattern}/{string}/gc
+ (Source: http://stackoverflow.com/a/25840884/813602)
+
 USAGE
 :[range]SubstituteExcept/{pattern}/{string}/[flags] [count]
                         Replace instances of text in the current line /
@@ -144,8 +149,7 @@ USAGE
 :[range]DeleteDuplicateLinesOf[!] [{pattern}]
 :[range]DeleteDuplicateLinesOf[!] /{pattern}/
                         Delete all subsequent occurrences of lines matching
-                        {pattern} (with . the current line; if omitted: the
-                        last search pattern).
+                        {pattern} (or the current line, if omitted).
 
 :[range]PrintDuplicateLinesIgnoring[!] [{pattern}]
 :[range]PrintDuplicateLinesIgnoring[!] /{pattern}/
