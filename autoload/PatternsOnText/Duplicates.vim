@@ -12,6 +12,18 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.50.007	18-Nov-2014	Factor out
+"				PatternsOnText#Duplicates#FilterDuplicates() and
+"				pass that in as Funcref.
+"				Support opposite selection via
+"				PatternsOnText#Uniques#FilterUnique() and a
+"				new PatternsOnText#Uniques#DeleteUnique()
+"				ReportAction that deletes all matches found in
+"				the accumulator and does the appropriate
+"				reporting (now moved to a separate module). The
+"				ReportAction is now also passed the parsed
+"				pattern and separator, as this is necessary
+"				there.
 "   1.36.006	23-Sep-2014	Correctly report :PrintDuplicates on folded
 "				lines.
 "   1.02.005	01-Jun-2013	Move functions from ingo/cmdargs.vim to
@@ -27,10 +39,11 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:FilterDuplicates( accumulator )
+function! PatternsOnText#Duplicates#FilterDuplicates( accumulator )
     call filter(a:accumulator, 'v:val.cnt > 1')
 endfunction
-function! PatternsOnText#Duplicates#Process( startLnum, endLnum, arguments, OnDuplicateAction, ReportAction )
+
+function! PatternsOnText#Duplicates#Process( startLnum, endLnum, arguments, Filter, OnDuplicateAction, ReportAction )
     if empty(a:arguments)
 	let [l:separator, l:pattern] = ['/', @/]
     else
@@ -45,12 +58,12 @@ function! PatternsOnText#Duplicates#Process( startLnum, endLnum, arguments, OnDu
 	\   l:separator
 	\)
 
-	call s:FilterDuplicates(l:accumulator)
+	call call(a:Filter, [l:accumulator])
 "****D echomsg '****' string(l:accumulator)
 	if empty(l:accumulator)
 	    return 0
 	elseif ! empty(a:ReportAction)
-	    call call(a:ReportAction, [l:accumulator, ingo#range#NetStart(a:startLnum), ingo#range#NetEnd(a:endLnum)])
+	    call call(a:ReportAction, [l:accumulator, ingo#range#NetStart(a:startLnum), ingo#range#NetEnd(a:endLnum), l:separator, l:pattern])
 	endif
     catch /^Vim\%((\a\+)\)\=:/
 	call ingo#msg#VimExceptionMsg()
@@ -78,7 +91,7 @@ function! s:Collect( accumulator, ... )
 
     return l:match
 endfunction
-function! PatternsOnText#Duplicates#PrintMatches( accumulator, startLnum, endLnum )
+function! PatternsOnText#Duplicates#PrintMatches( accumulator, startLnum, endLnum, separator, pattern )
     if a:startLnum == a:endLnum
 	for l:what in sort(keys(a:accumulator))
 	    echohl LineNr
@@ -89,7 +102,8 @@ function! PatternsOnText#Duplicates#PrintMatches( accumulator, startLnum, endLnu
 	    echohl Directory
 	    echon l:what
 	    echohl None
-	    echon ': ' . a:accumulator[l:what].cnt
+
+	    call s:PrintCount(a:accumulator[l:what].cnt)
 	endfor
     else
 	" List duplicates sorted by first occurrence.
@@ -113,7 +127,8 @@ function! PatternsOnText#Duplicates#PrintMatches( accumulator, startLnum, endLnu
 		echohl Directory
 		echon l:what
 		echohl None
-		echon ': ' . a:accumulator[l:what].cnt
+
+		call s:PrintCount(a:accumulator[l:what].cnt)
 
 		if len(a:accumulator[l:what].lnum) > 7
 		    " We have duplicates distributed over many lines, add a
@@ -130,18 +145,23 @@ function! PatternsOnText#Duplicates#PrintMatches( accumulator, startLnum, endLnu
 	endfor
     endif
 endfunction
+function! s:PrintCount( count )
+    if a:count > 1
+	echon ': ' . a:count
+    endif
+endfunction
 function! PatternsOnText#Duplicates#DeleteMatches( accumulator, match )
     return ''
 endfunction
-function! PatternsOnText#Duplicates#ReportDeletedMatches( accumulator, startLnum, endLnum )
+function! PatternsOnText#Duplicates#ReportDeletedMatches( accumulator, startLnum, endLnum, separator, pattern )
     let l:lines = {}
     let l:cnt = 0
     for l:what in keys(a:accumulator)
 	let l:cnt += a:accumulator[l:what].cnt - 1
 	for l:lnum in keys(a:accumulator[l:what].lnum)
 	    if a:accumulator[l:what].first == l:lnum && a:accumulator[l:what].lnum[l:lnum] == 1
-		" Don't count a line when it contains the first instance and no
-		" more instances.
+		" Don't count a line when it contains the first match and no
+		" more matches.
 		continue
 	    endif
 	    let l:lines[l:lnum] = 1
@@ -151,14 +171,14 @@ function! PatternsOnText#Duplicates#ReportDeletedMatches( accumulator, startLnum
     let l:deletedLines = len(keys(l:lines))
     if l:deletedLines >= &report
 	if len(keys(a:accumulator)) > 1
-	    call ingo#msg#StatusMsg(printf('Deleted %d instance%s of %d duplicates in %d line%s',
-	    \   l:cnt, (l:cnt == 1 ? '' : 's'),
+	    call ingo#msg#StatusMsg(printf('Deleted %d match%s of %d duplicates in %d line%s',
+	    \   l:cnt, (l:cnt == 1 ? '' : 'es'),
 	    \   len(keys(a:accumulator)),
 	    \   l:deletedLines, (l:deletedLines == 1 ? '' : 's')
 	    \))
 	else
-	    call ingo#msg#StatusMsg(printf('Deleted %d duplicate instance%s in %d line%s',
-	    \   l:cnt, (l:cnt == 1 ? '' : 's'),
+	    call ingo#msg#StatusMsg(printf('Deleted %d duplicate match%s in %d line%s',
+	    \   l:cnt, (l:cnt == 1 ? '' : 'es'),
 	    \   l:deletedLines, (l:deletedLines == 1 ? '' : 's')
 	    \))
 	endif
